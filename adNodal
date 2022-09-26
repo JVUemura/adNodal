@@ -1,0 +1,98 @@
+class adNodal():
+  """
+  Classe adNodal:
+  
+  Parâmetros de entrada: 
+  - b   (dic) Base de dados do sistema
+  - ref (int) Número da barra de referência do sistema
+  - y   (boll) Referênte a entrada de admitâncias [OPCIONAL]
+
+  Parâmetros de saída: [Após a execução do método run()]
+  - Atributo 'A' - Matriz incidencia reduzida do sistema
+  - Atributo 'Ypri' - Matriz de admitancias primitivas do sistema
+  - Atributo 'Zpri' - Matriz de impedancias primitivas do sistema
+  - Atributo 'Ybarra' - Matriz de admitancias do sistema
+  - Atributo 'Zbarra' - Matriz de impedancias do sistema
+
+  Formato do dicionario b:
+  b = {
+     'elemento': (int) Número de elementos,
+     'de':   (lista) Lista de barras,
+     'para': (lista) Lista de barras,
+     'x':    (lista) Lista de impedancias/admitancias
+     }
+
+  """
+  def __init__(self, b, ref, **kwargs):
+    self.b = b
+    self.bRef = ref
+    self.dC = 0
+    self.dL = 0
+    self.A = 0
+    self.Ypri = 0
+    self.Zpri = 0
+    self.Ybarra = 0
+    self.Zbarra = 0
+    if kwargs['y']:
+      self.b['x'] = self.b['x']**-1
+
+  def incidencia(self):
+    # Determinando a dimenssão da matriz incidência:
+    if max(self.b['de']) > max(self.b['para']):
+      dL = int(max(self.b['de']))
+    else:
+      dL = int(max(self.b['para']))
+
+    dC = len(self.b['elemento'])
+
+    self.dC = dC
+    self.dL = dL
+
+    # Criando a matriz incidência vazia:
+    A = np.zeros((dL,dC))
+
+    # Preenchendo a matriz incidência:
+    for kc in range(dC):
+      A[self.b['de'][kc]-1, kc] = -1
+      A[self.b['para'][kc]-1, kc] = 1
+
+    # Obtendo incidência reduzida:
+    self.A = np.delete(A,(self.bRef-1), axis = 0)
+
+  def primitivas(self):
+    # Criando a matriz Zpri vazia:
+    Zpri = np.zeros((self.dC,self.dC), dtype = "complex_")
+
+    # Preenchendo Zpri:
+    for k in range(self.dC):
+      Zpri[k,k] = (self.b['x'][k])
+
+    # Deteminando Ypri:
+    Ypri = np.linalg.inv(Zpri)
+
+    self.Zpri = Zpri
+    self.Ypri = Ypri
+
+  def barra(self):
+    # Determinando Ybarra:
+    Ybarra = np.dot(np.dot(self.A, self.Ypri),np.ndarray.transpose(self.A))
+
+    # Verificando se há linhas nulas:
+    dimNull = []
+    for x in range(self.dL-1):
+      if max(abs(Ybarra[x,:])) == 0 and max(abs(Ybarra[:,x])) == 0:
+        dimNull.append(x)
+    for j in dimNull:
+      Ybarra = np.delete(Ybarra,(j), axis = 0)
+      Ybarra = np.delete(Ybarra,(j), axis = 1)
+
+    self.Ybarra = Ybarra
+
+    # Determinando Zbarra:
+    Zbarra = np.linalg.inv(Ybarra)
+    self.Zbarra = Zbarra
+    
+  def run(self):
+    self.incidencia()
+    self.primitivas()
+    self.barra()
